@@ -1,0 +1,19 @@
+# YantraSetu backend dependencies (pinned for reproducible demo/deploy).
+# Grouped by the phase that first needs them. Recreate the env with:
+#   python -m venv .venv
+#   .venv\Scripts\activate
+#   pip install -r requirements.txt
+
+# --- Phase 0/1: web framework, configuration, ASGI server ---
+fastapi==0.141.1
+uvicorn[standard]==0.52.3
+pydantic==2.13.4
+pydantic-settings==2.15.0
+python-dotenv==1.2.3
+
+# --- Phase 3: data handling + explainable scoring ---
+numpy==2.5.2
+pandas==3.0.5
+
+# --- Phase 6: route optimization (Vehicle Routing Problem) ---
+ortools==9.15.6755
