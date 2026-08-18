@@ -24,3 +24,6 @@ ortools==9.15.6755
 
 # --- Phase 9.7: automated tests ---
 pytest==9.1.1
+
+# --- Phase 13.2: production database migrations ---
+alembic==1.19.1

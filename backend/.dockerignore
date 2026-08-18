@@ -1,0 +1,23 @@
+# Keep the image lean and never ship secrets or local-only files.
+
+# Python caches
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environment (huge, platform-specific)
+.venv/
+
+# Secrets / local env - NEVER ship these
+.env
+*.env
+!*.env.example
+
+# Local / throwaway databases
+*.db
+*.sqlite3
+
+# Tests are not needed at runtime
+tests/

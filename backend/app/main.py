@@ -33,8 +33,13 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: ensure the database tables exist (dev-stage schema setup).
-    init_db()
+    # Schema management is environment-specific:
+    #   development / demo -> convenient auto-create (create_all), unchanged.
+    #   production         -> Alembic owns the schema; migrations run in
+    #                         start.sh BEFORE the app boots, so we skip
+    #                         create_all here (never create tables ad hoc in prod).
+    if not settings.is_production:
+        init_db()
     yield
     # Shutdown: nothing to clean up yet.
 
@@ -52,7 +57,7 @@ app = FastAPI(
 # Allow the React dev server (running in the browser) to call this API.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
