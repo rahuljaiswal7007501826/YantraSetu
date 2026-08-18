@@ -1,3 +1,12 @@
-/* Tailwind CSS v4 - a single import pulls in the framework.
-   Utility classes used across the app come from here. */
 @import "tailwindcss";
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}

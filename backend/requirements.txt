@@ -11,9 +11,16 @@ pydantic==2.13.4
 pydantic-settings==2.15.0
 python-dotenv==1.2.3
 
+# --- Phase 1: database (SQLAlchemy ORM + PostgreSQL driver) ---
+sqlalchemy==2.0.52
+psycopg2-binary==2.9.12
+
 # --- Phase 3: data handling + explainable scoring ---
 numpy==2.5.2
 pandas==3.0.5
 
 # --- Phase 6: route optimization (Vehicle Routing Problem) ---
 ortools==9.15.6755
+
+# --- Phase 9.7: automated tests ---
+pytest==9.1.1
