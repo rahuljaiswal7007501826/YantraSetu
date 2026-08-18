@@ -1,10 +1,15 @@
 import axios from 'axios'
 
-// Single Axios instance for all backend calls. Vite proxies /api -> FastAPI.
+import { API_URL } from './apiConfig'
+
+// Single Axios instance for all backend calls.
+//   - Local dev: API_URL is '' so baseURL is '/api' and Vite's dev proxy
+//     forwards to FastAPI (unchanged behaviour).
+//   - Production: set VITE_API_URL so calls target the deployed backend.
 // When real auth arrives, a request interceptor here can attach the JWT in ONE
 // place, no page or service needs to change.
 const apiClient = axios.create({
-  baseURL: '/api',
+  baseURL: `${API_URL}/api`,
   headers: { 'Content-Type': 'application/json' },
   timeout: 20000,
 })

@@ -1,0 +1,17 @@
+# Netlify configuration for the YantraSetu frontend (static Vite SPA).
+# Deploys the `frontend/` subfolder; the backend deploys separately (Render).
+[build]
+  base = "frontend"           # run the build inside frontend/
+  command = "npm run build"
+  publish = "dist"            # relative to base -> frontend/dist
+
+[build.environment]
+  NODE_VERSION = "22"         # Vite 8 requires Node >= 22.12 (or 20.19+)
+
+# SPA fallback: serve index.html for client-side routes (/analytics, /map,
+# /demand, /allocation, /routes, ...) so a refresh or deep link never 404s.
+# (Also covered by frontend/public/_redirects for other static hosts.)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
