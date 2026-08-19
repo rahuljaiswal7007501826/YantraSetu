@@ -17,6 +17,7 @@ from app.routers import (
     analytics,
     auth,
     chcs,
+    complaints,
     dashboard,
     demo,
     farmers,
@@ -85,6 +86,7 @@ app.include_router(voice.router, prefix=settings.api_v1_prefix)
 app.include_router(dashboard.router, prefix=settings.api_v1_prefix)
 app.include_router(demo.router, prefix=settings.api_v1_prefix)
 app.include_router(analytics.router, prefix=settings.api_v1_prefix)
+app.include_router(complaints.router, prefix=settings.api_v1_prefix)
 
 
 @app.get("/", tags=["Meta"])

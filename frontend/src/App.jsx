@@ -5,6 +5,8 @@ import AppLayout from './layouts/AppLayout'
 import AllocationPage from './pages/AllocationPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import DemandPage from './pages/DemandPage'
+import FarmerFileComplaint from './pages/FarmerFileComplaint'
+import FarmerMyComplaints from './pages/FarmerMyComplaints'
 import LoginPage from './pages/LoginPage'
 import ManagerPendingRequests from './pages/ManagerPendingRequests'
 import MapPage from './pages/MapPage'
@@ -17,6 +19,7 @@ import OverviewPage from './pages/OverviewPage'
 import RelocationsPage from './pages/RelocationsPage'
 import RequestDetailsPage from './pages/RequestDetailsPage'
 import RoutesPage from './pages/RoutesPage'
+import StaffComplaints from './pages/StaffComplaints'
 
 // Gate the whole app behind authentication. While the token is being validated
 // we show a lightweight splash so the login screen never flashes for a user who
@@ -59,6 +62,9 @@ export default function App() {
           <Route path="/request/:id" element={<RequestDetailsPage />} />
           <Route path="/new-request" element={<NewRequestPage />} />
           <Route path="/my-booking" element={<MyBookingPage />} />
+          <Route path="/file-complaint" element={<FarmerFileComplaint />} />
+          <Route path="/my-complaints" element={<FarmerMyComplaints />} />
+          <Route path="/complaints" element={<StaffComplaints />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

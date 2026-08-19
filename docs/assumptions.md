@@ -96,3 +96,53 @@ is a later concern).
 **Convention note:** the phase brief named `SpeakButton.tsx` / `hi-strings.ts`,
 but this repo is JS (`.jsx`/`.js`) - created as `.jsx`/`.js` to match, same as
 Phase 17.
+
+
+## Farmer complaint system (Phase 19)
+
+**Table naming resolved to the repo, not the brief.** The brief said
+`farmer_id -> app_user.id`, but there is no `app_user` table: the repo has
+`users` (auth) + `farmers` (domain). So `complaints.farmer_id -> farmers.id`
+(matching `demand_requests.farmer_id`, owner-scoped via `current_user.farmer_id`)
+and `complaints.responded_by_user_id -> users.id`.
+
+**No enum migration needed.** `NotificationType` already reserved
+`complaint_filed` / `complaint_responded` / `complaint_resolved` in Phase 15, and
+notification `type` is a plain string column - so no enum change. The complaints
+*table* is added by migration `a7c3f19b2e64` (down_revision `e9e811b0afcb`),
+verified by applying the full chain to a throwaway SQLite DB
+(`ALEMBIC_DATABASE_URL`).
+
+**`complaint_filed` notifies all ADMINs (flagged decision).** There is no
+manager<->CHC link (Phase 16 Option B) and no prior "notify staff" pattern (every
+existing notification is staff-action -> farmer). So a new complaint fans out a
+best-effort notification to every ADMIN account (same best-effort spirit as the
+farmer notifications). Managers are NOT push-notified per complaint - they see
+complaints via the staff queue. Per-manager (CHC-targeted) push notification is
+deferred until a manager<->CHC link exists.
+
+**Staff visibility is role-scoped with the CHC id as an explicit filter.**
+`GET /chc/{id}/complaints` is role-gated (MANAGER/ADMIN); any manager/admin may
+query any CHC (there is no "their CHC"). `GET /admin/complaints` is ADMIN-only and
+returns everything, including general complaints. On the frontend, a manager must
+pick a CHC to triage; an admin defaults to all.
+
+**`chc_id` is derived from a linked machine at creation.** If a complaint links a
+`machine_id` but no `chc_id`, the effective `chc_id` is set to that machine's CHC
+so it lands in the CHC queue. General-service complaints keep `chc_id = NULL` and
+are visible to ADMIN only.
+
+**Status lifecycle:** `open -> in_progress -> resolved -> closed`. `respond`
+sets/keeps `in_progress` and records the responder; `resolve` (from open or
+in_progress) -> `resolved`; `close` (from resolved only) -> `closed`. Invalid
+transitions return 409.
+
+**Convention notes:** the brief named `.tsx` pages; created as `.jsx` to match
+the repo (same as Phases 17-18). All complaint endpoints live in one no-prefix
+`complaints.py` with full paths (incl. `/me/complaints`) to honor the exact paths
+in one cohesive file. Added (not in the brief's file list, but required to wire
+the pages) `complaintService.js`, `useComplaints.js` hooks, three routes, and one
+"Complaints" nav entry per role; and four additive complaint statuses to the
+shared `StatusBadge`. `VoiceInputButton` and `SpeakButton` are reused as-is, not
+forked. Voice still runs its Web Speech / disabled-tooltip fallback (Bhashini key
+pending).

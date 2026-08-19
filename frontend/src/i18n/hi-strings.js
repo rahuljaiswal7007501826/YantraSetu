@@ -23,4 +23,10 @@ export const hiStrings = {
   // request yet. The network is looking for one."
   noMachineYet:
     'अभी आपके अनुरोध के लिए कोई मशीन उपलब्ध नहीं है। नेटवर्क एक मशीन ढूंढ रहा है।',
+
+  // File Complaint page instructions (spoken via SpeakButton). On screen:
+  // "File your complaint here. Pick a category and write the details, or press
+  // the mic button to speak."
+  complaintInstructions:
+    'अपनी शिकायत यहाँ दर्ज करें। श्रेणी चुनें और विवरण लिखें, या माइक बटन दबाकर बोलें।',
 }

@@ -6,6 +6,7 @@ lets string-based relationships (e.g. "Machine") resolve correctly.
 """
 from app.models.booking import Booking, BookingStatus
 from app.models.chc import CHC
+from app.models.complaint import Complaint, ComplaintCategory, ComplaintStatus
 from app.models.demand_request import DemandRequest
 from app.models.farmer import Farmer
 from app.models.field import Field
@@ -32,4 +33,7 @@ __all__ = [
     "NotificationType",
     "Booking",
     "BookingStatus",
+    "Complaint",
+    "ComplaintCategory",
+    "ComplaintStatus",
 ]
