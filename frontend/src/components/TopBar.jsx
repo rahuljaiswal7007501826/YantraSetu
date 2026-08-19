@@ -5,6 +5,7 @@ import { useDemo } from '../context/DemoContext'
 import { ROLES, useRole } from '../context/RoleContext'
 import Button from './ui/Button'
 import HealthIndicator from './HealthIndicator'
+import NotificationBell from './NotificationBell'
 
 export default function TopBar({ onToggleSidebar }) {
   const { user, role, logout } = useRole()
@@ -33,6 +34,9 @@ export default function TopBar({ onToggleSidebar }) {
           <PlayCircle size={16} />
           <span className="hidden sm:inline">Run Demo</span>
         </Button>
+
+        {/* In-app notifications (same component for every role; owner-scoped server-side). */}
+        <NotificationBell />
 
         {/* Signed-in user + logout (replaces the old mock role switcher). */}
         <div className="flex items-center gap-3 border-l border-slate-200 pl-3">

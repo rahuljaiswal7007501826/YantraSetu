@@ -10,6 +10,7 @@ from app.models.farmer import Farmer
 from app.models.field import Field
 from app.models.machine import Machine
 from app.models.machine_availability import MachineAvailability
+from app.models.notification import Notification, NotificationType
 from app.models.relocation_recommendation import RelocationRecommendation
 from app.models.route import Route, RouteStop
 from app.models.user import User, UserRole
@@ -26,4 +27,6 @@ __all__ = [
     "RouteStop",
     "User",
     "UserRole",
+    "Notification",
+    "NotificationType",
 ]
