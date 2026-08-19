@@ -11,6 +11,13 @@ multi-farmer route for the moved machine - then proves the payoff with analytics
 
 All demo data is **synthetic** (no real people, farms, or CHCs).
 
+## 🚀 Live Demo
+
+[🌐 Open YantraSetu Live Demo](https://yantrasetu.netlify.app)
+
+Experience the deployed YantraSetu application and explore its intelligent
+agricultural machinery allocation and management workflow.
+
 ---
 
 ## 1. What it does (the problem)
