@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import require_roles
 from app.database import get_db
 from app.models import DemandRequest, Farmer, Field, Machine, User, UserRole
+from app.models.notification import NotificationType
 from app.schemas.booking import BookingRead
 from app.schemas.request import (
     AssignRequestIn,
@@ -23,6 +24,7 @@ from app.schemas.request import (
 )
 from app.services import assignment_service
 from app.services.allocation_engine import COMPATIBILITY, compatible_types, recommend_machines
+from app.services.notification_service import create_notification
 
 # Requests are a farmer/staff workflow; operators are not part of it.
 _REQUEST_ROLES = (UserRole.FARMER, UserRole.CHC_MANAGER, UserRole.ADMIN)
@@ -51,6 +53,27 @@ def _to_read(req: DemandRequest, field: Field, farmer: Farmer) -> DemandRequestR
         status=req.status,
         created_at=req.created_at,
     )
+
+
+def _notify_admins_of_new_request(db: Session, request: DemandRequest, farmer: Farmer) -> None:
+    """Notify every ADMIN that a new request arrived (best-effort fan-out).
+
+    Mirrors the complaint_filed pattern (Phase 19): there is no manager<->CHC
+    link, so admins are the reliable staff recipients - a manager still sees the
+    request in the pending queue. A missing recipient never fails creation.
+    Flushes only (via the service); the caller owns the commit.
+    """
+    admins = db.scalars(select(User).where(User.role == UserRole.ADMIN.value)).all()
+    for admin in admins:
+        create_notification(
+            db,
+            user_id=admin.id,
+            type=NotificationType.REQUEST_CREATED,
+            title="New machinery request",
+            body=f"{farmer.name} requested {request.operation_type} on {request.requested_date}.",
+            link="/pending-requests",
+            related_id=request.id,
+        )
 
 
 @router.get("", response_model=list[DemandRequestRead])
@@ -135,6 +158,8 @@ def create_request(
         status="pending",
     )
     db.add(req)
+    db.flush()  # assign req.id before creating notifications
+    _notify_admins_of_new_request(db, req, farmer)
     db.commit()
     db.refresh(req)
     return _to_read(req, field, farmer)

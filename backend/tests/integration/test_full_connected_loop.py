@@ -10,12 +10,11 @@ real allocation engine picks the machine):
 then reads the farmer's own notifications via the real notifications endpoint and
 asserts their chronological order.
 
-DISCREPANCY vs the original spec's step 2 (reported): request *creation* notifies
-NO ONE in this codebase. `POST /api/requests` (requests.create_request) inserts
-the DemandRequest and commits with no notification; the `request_created`
-NotificationType value exists but is unused. So the loop's first notification is
-`request_assigned` (on assign), and this test asserts creation is silent - which
-is consistent with the spec's own step-9 expected sequence.
+NOTE on step 2: request creation notifies the ADMINs. `create_request` fans out
+a `request_created` notification to all admins (Phase 20 fix, mirroring
+`complaint_filed` - there is no manager<->CHC link, so admins are the reliable
+staff recipient). The farmer is not self-notified, so the farmer's own
+notification sequence still begins with `request_assigned`.
 """
 from datetime import date, time, timedelta
 
@@ -142,9 +141,11 @@ def test_full_connected_loop(client, db_session):
     request_id = r.json()["id"]
     assert r.json()["status"] == "pending"
 
-    # === 2. (adjusted) Request creation is SILENT - nobody is notified yet ===
+    # === 2. Request creation notifies the ADMINs (not the farmer) ===
     assert client.get("/api/me/notifications", headers=fa_auth).json() == []
-    assert client.get("/api/me/notifications", headers=ad_auth).json() == []
+    admin_notes = client.get("/api/me/notifications", headers=ad_auth).json()
+    assert [n["type"] for n in admin_notes] == ["request_created"]
+    assert admin_notes[0]["related_id"] == request_id
 
     # === 3. Assign via the REAL recommendation engine (not a mock) ===
     r = client.post(

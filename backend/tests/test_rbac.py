@@ -233,6 +233,28 @@ def test_farmer_create_is_forced_to_own_farmer_id(client, db_session, world):
     assert r.json()["farmer_id"] == world["farmerA"].id  # forced to their own profile
 
 
+def test_create_request_notifies_admins(client, db_session, world, headers):
+    """A new request fans out a request_created notification to every ADMIN; the
+    farmer who filed it is not self-notified."""
+    fu = _farmer_user(db_session, world["farmerA"].id)
+    payload = {
+        "farmer_id": world["farmerA"].id,
+        "field_id": world["fieldA"].id,
+        "operation_type": "Harvesting",
+        "requested_date": str(date.today()),
+        "urgency": "high",
+    }
+    r = client.post("/api/requests", headers=_auth(fu), json=payload)
+    assert r.status_code == 201, r.text
+    request_id = r.json()["id"]
+
+    admin_notes = client.get("/api/me/notifications", headers=headers["ADMIN"]).json()
+    created = [n for n in admin_notes if n["type"] == "request_created"]
+    assert len(created) == 1 and created[0]["related_id"] == request_id
+    # The farmer who filed it is not self-notified.
+    assert client.get("/api/me/notifications", headers=_auth(fu)).json() == []
+
+
 def test_farmer_without_profile_link_cannot_create(client, db_session, world):
     fu = _farmer_user(db_session, None)  # not linked to any Farmer
     payload = {
