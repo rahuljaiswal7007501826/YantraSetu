@@ -57,3 +57,42 @@ follow-up.
 **Budget-Android verification is manual.** Web Speech API support is patchy in
 in-app WebViews / older Chrome — this can only be verified on a physical device,
 not in this environment.
+
+
+## Hindi voice output / TTS (Phase 18)
+
+**Bhashini TTS is coded to the confirmed contract but NOT live-verified here.**
+The `bhashini_client.synthesize()` call was built against the documented
+ULCA/Dhruva TTS flow (`taskType: tts`, `inputData.input[].source`, response
+`pipelineResponse[0].audio[0].audioContent` -> base64 WAV) and cross-checked
+against a real open-source client. It still needs the approved
+`BHASHINI_USER_ID`/`BHASHINI_API_KEY` to run live; `gender` (default `female`)
+and `samplingRate` (default 8000) may need per-account tweaks. Until then the
+`/api/voice/speak` endpoint returns 503 `not_configured` and the UI falls back.
+
+**Fallback priority is the reverse of Phase 17 (input), on purpose.** For voice
+*output* quality matters for farmer trust, so Bhashini is primary even though it
+needs a network round trip; the browser `speechSynthesis` fallback is
+**best-effort only** - budget Android frequently has no real Hindi voice and may
+read the text with a robotic default or fail silently. The on-screen Hindi/
+English text is always present, so a total audio failure loses only convenience.
+
+**A submission-confirmation banner was added** (`RequestDetailsPage`, shown via
+router navigation state right after submit). There was no explicit "request
+registered" confirmation text before - the SpeakButton needed real on-screen
+copy to match, so the banner shows the English line and speaks its faithful
+Hindi translation (`hiStrings.requestRegistered`), not invented phrasing.
+
+**Spoken Hindi is a tiny scoped lookup, not i18n.** `frontend/src/i18n/hi-strings.js`
+holds only the few strings read aloud (request-registered; assignment
+confirmed/preview with machine type + CHC name interpolated; no-machine-yet).
+Interpolated machine type / CHC name stay in English exactly as shown on screen.
+
+**The TTS cache is per-process.** Identical strings are cached in-memory for
+`VOICE_TTS_CACHE_TTL_SECONDS` (default 300) to avoid redundant Bhashini calls;
+this is not shared across workers/instances (fine for the demo; a shared cache
+is a later concern).
+
+**Convention note:** the phase brief named `SpeakButton.tsx` / `hi-strings.ts`,
+but this repo is JS (`.jsx`/`.js`) - created as `.jsx`/`.js` to match, same as
+Phase 17.

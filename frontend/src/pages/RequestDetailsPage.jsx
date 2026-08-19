@@ -1,18 +1,24 @@
-import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, MapPin, Tractor } from 'lucide-react'
+import { Link, useLocation, useParams } from 'react-router-dom'
+import { ArrowLeft, CheckCircle2, MapPin, Tractor } from 'lucide-react'
 
 import Card from '../components/ui/Card'
+import SpeakButton from '../components/SpeakButton'
 import StatusBadge from '../components/ui/StatusBadge'
 import ErrorState from '../components/states/ErrorState'
 import { SkeletonCard } from '../components/states/Loading'
+import { hiStrings } from '../i18n/hi-strings'
 import { useAllocation } from '../hooks/useAllocation'
 import { useRequest } from '../hooks/useRequests'
+
+const REQUEST_REGISTERED_EN = 'Your request has been registered successfully.'
 
 const rupees = (n) => `Rs ${Math.round(n ?? 0).toLocaleString('en-IN')}`
 
 export default function RequestDetailsPage() {
   const { id } = useParams()
   const reqId = Number(id)
+  const location = useLocation()
+  const justCreated = Boolean(location.state?.justCreated)
   const { data: req, isLoading, isError, error, refetch } = useRequest(reqId)
 
   // Only ask the allocation engine for a machine while the request is still pending.
@@ -27,6 +33,16 @@ export default function RequestDetailsPage() {
         </Link>
         <h1 className="mt-1 text-xl font-semibold text-slate-900">Request #{reqId}</h1>
       </header>
+
+      {justCreated && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+          <p className="inline-flex items-center gap-2 text-sm font-medium text-emerald-800">
+            <CheckCircle2 size={18} className="shrink-0 text-emerald-600" />
+            {REQUEST_REGISTERED_EN}
+          </p>
+          <SpeakButton text={REQUEST_REGISTERED_EN} hindi={hiStrings.requestRegistered} />
+        </div>
+      )}
 
       {isError ? (
         <ErrorState message={error?.message || 'Failed to load the request.'} onRetry={refetch} />

@@ -68,6 +68,9 @@ class Settings(BaseSettings):
     )
     # Reject audio uploads larger than this (a few-second clip is far smaller).
     voice_max_upload_bytes: int = 8_000_000
+    # How long to cache a TTS clip for an identical string. Confirmation/status
+    # copy repeats a lot, so this avoids redundant Bhashini calls (per-process).
+    voice_tts_cache_ttl_seconds: int = 300
 
     @property
     def cors_origins_list(self) -> list[str]:

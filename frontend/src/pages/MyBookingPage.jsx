@@ -4,11 +4,13 @@ import { CalendarClock, MapPin, PlusCircle, Tractor } from 'lucide-react'
 
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
+import SpeakButton from '../components/SpeakButton'
 import StatusBadge from '../components/ui/StatusBadge'
 import EmptyState from '../components/states/EmptyState'
 import ErrorState from '../components/states/ErrorState'
 import { SkeletonCard } from '../components/states/Loading'
 import FarmerPicker from '../components/FarmerPicker'
+import { hiStrings } from '../i18n/hi-strings'
 import { useRole } from '../context/RoleContext'
 import { useAllocation } from '../hooks/useAllocation'
 import { useMyAssignment } from '../hooks/useMe'
@@ -41,6 +43,20 @@ export default function MyBookingPage() {
   const assignQ = useMyAssignment(isFarmer ? current?.id : null)
   const activeQ = isFarmer ? assignQ : allocQ
   const machine = isFarmer ? assignQ.data?.assigned_machine : allocQ.data?.recommendations?.[0]
+
+  // Spoken audio matches the on-screen assignment state (confirmed vs preview vs
+  // none). English text is for the accessible label; Hindi is what's read aloud.
+  const isConfirmed = ['allocated', 'scheduled'].includes(current?.status)
+  const speakEnglish = !machine
+    ? 'No machine is available for your request yet. The network is looking for one.'
+    : isConfirmed
+      ? `${machine.chc_name} confirmed the ${machine.machine_type} for your request.`
+      : `The network recommends the ${machine.machine_type} from ${machine.chc_name} for your request.`
+  const speakHindi = !machine
+    ? hiStrings.noMachineYet
+    : isConfirmed
+      ? hiStrings.assignmentConfirmed({ machineType: machine.machine_type, chcName: machine.chc_name })
+      : hiStrings.assignmentPreview({ machineType: machine.machine_type, chcName: machine.chc_name })
 
   const busy = farmerId == null || reqsQ.isLoading
 
@@ -154,6 +170,11 @@ export default function MyBookingPage() {
                   This is the machine the network recommends for your request. Your CHC confirms the
                   exact time slot once the schedule is finalised.
                 </p>
+              </div>
+            )}
+            {!activeQ.isLoading && !activeQ.isError && (
+              <div className="mt-3 flex justify-end">
+                <SpeakButton text={speakEnglish} hindi={speakHindi} />
               </div>
             )}
           </Card>

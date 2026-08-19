@@ -95,7 +95,7 @@ export default function NewRequestPage() {
         requested_date: date,
         urgency,
       },
-      { onSuccess: (req) => navigate(`/request/${req.id}`) },
+      { onSuccess: (req) => navigate(`/request/${req.id}`, { state: { justCreated: true } }) },
     )
   }
 

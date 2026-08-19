@@ -11,4 +11,8 @@ export const voiceService = {
       .post('/voice/transcribe', form, { headers: { 'Content-Type': undefined } })
       .then((r) => r.data)
   },
+
+  // Ask the backend proxy (-> Bhashini TTS) to speak a Hindi string.
+  // Returns { audio_base64, mime, language, cached }.
+  speak: (text) => apiClient.post('/voice/speak', { text }).then((r) => r.data),
 }

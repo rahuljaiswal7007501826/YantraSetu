@@ -1,15 +1,18 @@
-"""Bhashini (ULCA / Dhruva) ASR client - Phase 17.
+"""Bhashini (ULCA / Dhruva) speech client - ASR (Phase 17) + TTS (Phase 18).
 
-Wraps the Government of India Bhashini speech-to-text pipeline. Kept fully
-isolated from FastAPI (plain functions, no request objects) so it is trivial to
-mock in tests and swap later.
+Wraps the Government of India Bhashini speech-to-text (ASR) and text-to-speech
+(TTS) pipelines. Kept fully isolated from FastAPI (plain functions, no request
+objects) so it is trivial to mock in tests and swap later.
 
-Two-step ULCA flow:
+Two-step ULCA flow (shared by ASR and TTS - only the taskType differs):
   1. getModelsPipeline (config): POST the config URL with userID + ulcaApiKey
-     headers; the response gives the ASR serviceId, the compute callbackUrl, and
-     the inference auth header to use.
-  2. compute: POST the callbackUrl with that auth header and the base64 audio;
-     the response carries the transcript.
+     headers; the response gives the task's serviceId, the compute callbackUrl,
+     and the inference auth header to use.
+  2. compute: POST the callbackUrl with that auth header and the payload:
+       - ASR: base64 audio in -> transcript out
+              (pipelineResponse[0].output[0].source)
+       - TTS: text in -> base64 audio out
+              (pipelineResponse[0].audio[0].audioContent)
 
 Any failure raises BhashiniError(code, message) so the caller can return a clean
 typed error and the frontend can fall back gracefully.
@@ -28,6 +31,7 @@ import httpx
 from app.config import get_settings
 
 _ASR_TASK = "asr"
+_TTS_TASK = "tts"
 _TIMEOUT = httpx.Timeout(20.0)
 
 
@@ -40,8 +44,11 @@ class BhashiniError(Exception):
         self.message = message
 
 
-def _get_pipeline(source_language: str) -> dict:
-    """Step 1: fetch the ASR pipeline config (serviceId + callback + auth header)."""
+def _get_pipeline(source_language: str, task_type: str = _ASR_TASK) -> dict:
+    """Step 1: fetch a task's pipeline config (serviceId + callback + auth header).
+
+    Shared by ASR and TTS - only the taskType differs.
+    """
     settings = get_settings()
     headers = {
         "userID": settings.bhashini_user_id,
@@ -50,7 +57,7 @@ def _get_pipeline(source_language: str) -> dict:
     }
     body = {
         "pipelineTasks": [
-            {"taskType": _ASR_TASK, "config": {"language": {"sourceLanguage": source_language}}}
+            {"taskType": task_type, "config": {"language": {"sourceLanguage": source_language}}}
         ],
         "pipelineRequestConfig": {"pipelineId": settings.bhashini_pipeline_id},
     }
@@ -62,7 +69,7 @@ def _get_pipeline(source_language: str) -> dict:
         raise BhashiniError("config_http_error", f"Bhashini config returned HTTP {resp.status_code}.")
     try:
         data = resp.json()
-        task = next(t for t in data["pipelineResponseConfig"] if t["taskType"] == _ASR_TASK)
+        task = next(t for t in data["pipelineResponseConfig"] if t["taskType"] == task_type)
         service_id = task["config"][0]["serviceId"]
         endpoint = data["pipelineInferenceAPIEndPoint"]
         api_key = endpoint["inferenceApiKey"]  # {"name": ..., "value": ...}
@@ -88,7 +95,7 @@ def transcribe(
     if not settings.bhashini_configured:
         raise BhashiniError("not_configured", "Bhashini credentials are not configured.")
 
-    pipeline = _get_pipeline(source_language)
+    pipeline = _get_pipeline(source_language, _ASR_TASK)
     audio_b64 = base64.b64encode(audio_bytes).decode("ascii")
     body = {
         "pipelineTasks": [
@@ -117,3 +124,55 @@ def transcribe(
     except (KeyError, IndexError, ValueError) as exc:
         raise BhashiniError("compute_parse_error", f"Unexpected Bhashini compute shape: {exc}") from exc
     return (transcript or "").strip()
+
+
+def synthesize(
+    text: str,
+    *,
+    lang: str = "hi",
+    gender: str = "female",
+    sampling_rate: int = 8000,
+) -> tuple[bytes, str]:
+    """Synthesize `text` to speech. Returns (audio_bytes, mime_type).
+
+    Raises BhashiniError on any failure. Output is WAV, so the browser can play
+    it directly.
+    """
+    settings = get_settings()
+    if not settings.bhashini_configured:
+        raise BhashiniError("not_configured", "Bhashini credentials are not configured.")
+    clean = (text or "").strip()
+    if not clean:
+        raise BhashiniError("empty_text", "No text was provided to speak.")
+
+    pipeline = _get_pipeline(lang, _TTS_TASK)
+    body = {
+        "pipelineTasks": [
+            {
+                "taskType": _TTS_TASK,
+                "config": {
+                    "language": {"sourceLanguage": lang},
+                    "serviceId": pipeline["service_id"],
+                    "gender": gender,
+                    "samplingRate": sampling_rate,
+                },
+            }
+        ],
+        "inputData": {"input": [{"source": clean}]},
+    }
+    headers = {pipeline["auth_name"]: pipeline["auth_value"], "Content-Type": "application/json"}
+    try:
+        resp = httpx.post(pipeline["callback_url"], json=body, headers=headers, timeout=_TIMEOUT)
+    except httpx.HTTPError as exc:
+        raise BhashiniError("compute_unreachable", f"Bhashini compute call failed: {exc}") from exc
+    if resp.status_code != 200:
+        raise BhashiniError("compute_http_error", f"Bhashini compute returned HTTP {resp.status_code}.")
+    try:
+        data = resp.json()
+        audio_b64 = data["pipelineResponse"][0]["audio"][0]["audioContent"]
+        audio_bytes = base64.b64decode(audio_b64)
+    except (KeyError, IndexError, ValueError) as exc:
+        raise BhashiniError("compute_parse_error", f"Unexpected Bhashini compute shape: {exc}") from exc
+    if not audio_bytes:
+        raise BhashiniError("compute_parse_error", "Bhashini returned empty audio.")
+    return audio_bytes, "audio/wav"
