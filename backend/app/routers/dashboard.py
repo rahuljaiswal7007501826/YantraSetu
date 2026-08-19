@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.deps import require_role
 from app.database import get_db
 from app.models import (
     CHC,
@@ -21,11 +22,17 @@ from app.models import (
     Machine,
     MachineAvailability,
     RelocationRecommendation,
+    UserRole,
 )
 from app.schemas.dashboard import AdminDashboard
 from app.services.demand_engine import analyze_demand, get_shortages
 
-router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
+# Network-wide admin dashboard: district admin only.
+router = APIRouter(
+    prefix="/dashboard",
+    tags=["Dashboard"],
+    dependencies=[Depends(require_role(UserRole.ADMIN))],
+)
 
 
 @router.get("/admin", response_model=AdminDashboard)

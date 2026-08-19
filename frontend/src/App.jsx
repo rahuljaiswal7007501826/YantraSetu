@@ -1,9 +1,11 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
+import { useRole } from './context/RoleContext'
 import AppLayout from './layouts/AppLayout'
 import AllocationPage from './pages/AllocationPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import DemandPage from './pages/DemandPage'
+import LoginPage from './pages/LoginPage'
 import MapPage from './pages/MapPage'
 import MyBookingPage from './pages/MyBookingPage'
 import MyRequestsPage from './pages/MyRequestsPage'
@@ -15,11 +17,34 @@ import RelocationsPage from './pages/RelocationsPage'
 import RequestDetailsPage from './pages/RequestDetailsPage'
 import RoutesPage from './pages/RoutesPage'
 
+// Gate the whole app behind authentication. While the token is being validated
+// we show a lightweight splash so the login screen never flashes for a user who
+// is actually signed in.
+function RequireAuth({ children }) {
+  const { isAuthenticated, loading } = useRole()
+  if (loading) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-slate-50 text-sm text-slate-500">
+        Loading YantraSetu...
+      </div>
+    )
+  }
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  return children
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route element={<AppLayout />}>
+        <Route path="/login" element={<LoginPage />} />
+        <Route
+          element={
+            <RequireAuth>
+              <AppLayout />
+            </RequireAuth>
+          }
+        >
           <Route path="/" element={<OverviewPage />} />
           <Route path="/demand" element={<DemandPage />} />
           <Route path="/allocation" element={<AllocationPage />} />

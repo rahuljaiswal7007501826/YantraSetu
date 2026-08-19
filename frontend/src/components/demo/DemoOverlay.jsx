@@ -1,10 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CheckCircle2, ChevronLeft, ChevronRight, RotateCcw, Sparkles, X } from 'lucide-react'
 
 import { DEMO_STEPS } from '../../config/demoSteps'
 import { useDemo } from '../../context/DemoContext'
-import { useRole } from '../../context/RoleContext'
 import { useDemoReset } from '../../hooks/useDemoReset'
 import Button from '../ui/Button'
 
@@ -12,41 +11,26 @@ import Button from '../ui/Button'
  * DemoOverlay - the floating presenter panel for the guided walkthrough.
  *
  * It does NOT block the page (no backdrop): the presenter still clicks Approve
- * and Optimise live on the real screens. Advancing a step auto-navigates and
- * auto-switches role; exiting restores the role the user started from.
+ * and Optimise live on the real screens. Advancing a step auto-navigates to the
+ * screen that tells that part of the story. The demo stays logged in as whoever
+ * started it - ADMIN can view every screen the walkthrough visits, so there is
+ * no client-side role switching (roles come from the JWT).
  */
 export default function DemoOverlay() {
   const { active, step, next, goTo, stop } = useDemo()
-  const { role, setRole } = useRole()
   const navigate = useNavigate()
   const reset = useDemoReset()
-
-  const prevActiveRef = useRef(false)
-  const originalRoleRef = useRef(null)
 
   const idx = Math.min(step, DEMO_STEPS.length - 1)
   const current = DEMO_STEPS[idx]
   const isLast = idx >= DEMO_STEPS.length - 1
 
-  // Drive navigation + role on every step change; capture/restore role on the
-  // active edges. role is intentionally not a dependency - we don't want a
-  // manual role switch mid-demo to re-navigate.
+  // Advancing to a step navigates to that step's screen. idx is the only
+  // trigger we need; the logged-in user is unchanged throughout the demo.
   useEffect(() => {
-    if (!active) {
-      if (prevActiveRef.current && originalRoleRef.current) {
-        setRole(originalRoleRef.current)
-        originalRoleRef.current = null
-      }
-      prevActiveRef.current = false
-      return
-    }
-    if (!prevActiveRef.current) {
-      originalRoleRef.current = role // pre-demo role, captured before we switch
-      prevActiveRef.current = true
-    }
+    if (!active) return
     const s = DEMO_STEPS[idx]
     if (!s) return
-    if (s.role && s.role !== role) setRole(s.role)
     navigate(s.query ? `${s.path}?${new URLSearchParams(s.query)}` : s.path)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, idx])

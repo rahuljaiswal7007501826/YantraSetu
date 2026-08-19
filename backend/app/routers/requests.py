@@ -10,10 +10,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.deps import require_roles
 from app.database import get_db
-from app.models import DemandRequest, Farmer, Field
+from app.models import DemandRequest, Farmer, Field, User, UserRole
 from app.schemas.request import DemandRequestCreate, DemandRequestRead
 from app.services.allocation_engine import COMPATIBILITY
+
+# Requests are a farmer/staff workflow; operators are not part of it.
+_REQUEST_ROLES = (UserRole.FARMER, UserRole.CHC_MANAGER, UserRole.ADMIN)
 
 router = APIRouter(prefix="/requests", tags=["Requests"])
 
@@ -48,18 +52,25 @@ def list_requests(
     farmer_id: int | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(*_REQUEST_ROLES)),
 ):
     stmt = (
         select(DemandRequest, Field, Farmer)
         .join(Field, Field.id == DemandRequest.field_id)
         .join(Farmer, Farmer.id == DemandRequest.farmer_id)
     )
+    # Owner scoping: a FARMER only ever sees their own requests, regardless of any
+    # farmer_id query value. Staff (manager/admin) may still filter by farmer_id.
+    if current_user.role == UserRole.FARMER.value:
+        if current_user.farmer_id is None:
+            return []
+        stmt = stmt.where(DemandRequest.farmer_id == current_user.farmer_id)
+    elif farmer_id:
+        stmt = stmt.where(DemandRequest.farmer_id == farmer_id)
     if status_filter:
         stmt = stmt.where(DemandRequest.status == status_filter)
     if operation_type:
         stmt = stmt.where(DemandRequest.operation_type == operation_type)
-    if farmer_id:
-        stmt = stmt.where(DemandRequest.farmer_id == farmer_id)
     if machine_type:
         ops = [op for op, types in COMPATIBILITY.items() if machine_type in types]
         if not ops:
@@ -71,22 +82,41 @@ def list_requests(
 
 
 @router.post("", response_model=DemandRequestRead, status_code=status.HTTP_201_CREATED)
-def create_request(payload: DemandRequestCreate, db: Session = Depends(get_db)):
-    """Create a machinery request for one of a farmer's fields."""
-    farmer = db.get(Farmer, payload.farmer_id)
+def create_request(
+    payload: DemandRequestCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(*_REQUEST_ROLES)),
+):
+    """Create a machinery request for one of a farmer's fields.
+
+    A FARMER may only create requests for their own linked profile (the payload's
+    farmer_id is ignored for them). Staff (manager/admin) may create on behalf of
+    any farmer.
+    """
+    if current_user.role == UserRole.FARMER.value:
+        if current_user.farmer_id is None:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Your account is not linked to a farmer profile.",
+            )
+        farmer_id = current_user.farmer_id
+    else:
+        farmer_id = payload.farmer_id
+
+    farmer = db.get(Farmer, farmer_id)
     if farmer is None:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Farmer {payload.farmer_id} not found")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Farmer {farmer_id} not found")
     field = db.get(Field, payload.field_id)
     if field is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Field {payload.field_id} not found")
-    if field.farmer_id != payload.farmer_id:
+    if field.farmer_id != farmer_id:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
-            f"Field {payload.field_id} does not belong to farmer {payload.farmer_id}",
+            f"Field {payload.field_id} does not belong to farmer {farmer_id}",
         )
 
     req = DemandRequest(
-        farmer_id=payload.farmer_id,
+        farmer_id=farmer_id,
         field_id=payload.field_id,
         operation_type=payload.operation_type,
         requested_date=payload.requested_date,
@@ -100,7 +130,11 @@ def create_request(payload: DemandRequestCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/{request_id}", response_model=DemandRequestRead)
-def get_request(request_id: int, db: Session = Depends(get_db)):
+def get_request(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(*_REQUEST_ROLES)),
+):
     row = db.execute(
         select(DemandRequest, Field, Farmer)
         .join(Field, Field.id == DemandRequest.field_id)
@@ -113,4 +147,11 @@ def get_request(request_id: int, db: Session = Depends(get_db)):
             detail=f"DemandRequest with id={request_id} not found",
         )
     req, field, farmer = row
+    # Owner scoping: a FARMER can only read their own request. Return 404 (not 403)
+    # so request ids cannot be enumerated by non-owners.
+    if current_user.role == UserRole.FARMER.value and req.farmer_id != current_user.farmer_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"DemandRequest with id={request_id} not found",
+        )
     return _to_read(req, field, farmer)

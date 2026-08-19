@@ -3,12 +3,23 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.deps import require_roles
 from app.database import get_db
-from app.models import CHC, Machine
+from app.models import CHC, Machine, UserRole
 from app.schemas import MachineCreate, MachineRead, MachineUpdate
 from app.utils import get_or_404
 
-router = APIRouter(prefix="/machines", tags=["Machines"])
+# Reads (list/get) allowed for operators too; writes are further restricted
+# to managers + admins on the individual write endpoints (Phase I-B).
+router = APIRouter(
+    prefix="/machines",
+    tags=["Machines"],
+    dependencies=[Depends(require_roles(UserRole.OPERATOR, UserRole.CHC_MANAGER, UserRole.ADMIN))],
+)
+
+# Write operations (create/update/delete) require managers or admins. This is an
+# ADDITIONAL guard on top of the router-level read guard above.
+_manager_only = require_roles(UserRole.CHC_MANAGER, UserRole.ADMIN)
 
 
 def _ensure_chc_exists(db: Session, chc_id: int) -> None:
@@ -35,7 +46,9 @@ def list_machines(
 
 
 @router.post("", response_model=MachineRead, status_code=status.HTTP_201_CREATED)
-def create_machine(payload: MachineCreate, db: Session = Depends(get_db)):
+def create_machine(
+    payload: MachineCreate, db: Session = Depends(get_db), _guard=Depends(_manager_only)
+):
     """Create a machine. The referenced CHC must already exist."""
     _ensure_chc_exists(db, payload.chc_id)
     machine = Machine(**payload.model_dump())
@@ -51,7 +64,10 @@ def get_machine(machine_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{machine_id}", response_model=MachineRead)
-def update_machine(machine_id: int, payload: MachineUpdate, db: Session = Depends(get_db)):
+def update_machine(
+    machine_id: int, payload: MachineUpdate, db: Session = Depends(get_db),
+    _guard=Depends(_manager_only),
+):
     machine = get_or_404(db, Machine, machine_id, "Machine")
     data = payload.model_dump(exclude_unset=True)
     if "chc_id" in data:
@@ -64,7 +80,7 @@ def update_machine(machine_id: int, payload: MachineUpdate, db: Session = Depend
 
 
 @router.delete("/{machine_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_machine(machine_id: int, db: Session = Depends(get_db)):
+def delete_machine(machine_id: int, db: Session = Depends(get_db), _guard=Depends(_manager_only)):
     machine = get_or_404(db, Machine, machine_id, "Machine")
     db.delete(machine)
     db.commit()

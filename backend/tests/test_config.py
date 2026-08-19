@@ -10,7 +10,15 @@ from app.config import Settings
 
 
 def test_dev_settings_are_permissive():
-    s = Settings(app_env="development", debug=True, secret_key="dev-only-secret-change-me")
+    # cors_origins is passed explicitly so this test is deterministic regardless
+    # of any CORS_ORIGINS set in the environment/.env (matches the sibling tests
+    # and this file's docstring: use explicit overrides, never depend on .env).
+    s = Settings(
+        app_env="development",
+        debug=True,
+        secret_key="dev-only-secret-change-me",
+        cors_origins="http://localhost:5173,http://localhost:3000",
+    )
     assert s.is_production is False
     assert s.debug is True  # dev is left alone
     assert "http://localhost:5173" in s.cors_origins_list

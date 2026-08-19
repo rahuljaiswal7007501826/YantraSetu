@@ -23,12 +23,20 @@ export const NAV_BY_ROLE = {
     { label: 'CHCs & Machines', to: '/network', icon: Tractor },
     { label: 'Analytics', to: '/analytics', icon: BarChart3 },
   ],
+  // CHC manager: the network Overview and Analytics are district-admin only
+  // (RBAC), so the manager's workspace centres on the relocation approvals,
+  // fleet, routes and the shared map.
   chc_operator: [
-    { label: 'My CHC', to: '/', icon: LayoutDashboard },
-    { label: 'Machines', to: '/network', icon: Tractor },
     { label: 'Relocation Approvals', to: '/relocations', icon: Shuffle },
+    { label: 'Machines', to: '/network', icon: Tractor },
     { label: 'Routes', to: '/routes', icon: RouteIcon },
-    { label: 'Analytics', to: '/analytics', icon: BarChart3 },
+    { label: 'Live Map', to: '/map', icon: Map },
+  ],
+  // Machine/route operator: operational read + route execution only.
+  operator: [
+    { label: 'Machines', to: '/network', icon: Tractor },
+    { label: 'Routes', to: '/routes', icon: RouteIcon },
+    { label: 'Live Map', to: '/map', icon: Map },
   ],
   farmer: [
     { label: 'My Requests', to: '/my-requests', icon: FileText },

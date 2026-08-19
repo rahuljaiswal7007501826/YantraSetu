@@ -27,3 +27,13 @@ pytest==9.1.1
 
 # --- Phase 13.2: production database migrations ---
 alembic==1.19.1
+
+# --- Auth phase: password hashing (bcrypt) + JWT ---
+# NOTE: bcrypt is used directly (not via passlib): passlib 1.7.4 is unmaintained
+# and crashes on init with bcrypt >= 5.x.
+bcrypt==5.0.0
+PyJWT==2.13.0
+email-validator==2.3.0
+
+# --- Test-only: FastAPI TestClient HTTP transport (RBAC endpoint tests) ---
+httpx==0.28.1

@@ -12,6 +12,7 @@ from app.models.machine import Machine
 from app.models.machine_availability import MachineAvailability
 from app.models.relocation_recommendation import RelocationRecommendation
 from app.models.route import Route, RouteStop
+from app.models.user import User, UserRole
 
 __all__ = [
     "CHC",
@@ -23,4 +24,6 @@ __all__ = [
     "RelocationRecommendation",
     "Route",
     "RouteStop",
+    "User",
+    "UserRole",
 ]

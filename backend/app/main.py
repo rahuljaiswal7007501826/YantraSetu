@@ -15,6 +15,7 @@ from app.database import init_db
 from app.routers import (
     allocation,
     analytics,
+    auth,
     chcs,
     dashboard,
     demo,
@@ -23,6 +24,7 @@ from app.routers import (
     forecast,
     machines,
     map_data,
+    me,
     relocations,
     requests,
     routes,
@@ -64,6 +66,7 @@ app.add_middleware(
 )
 
 # --- API routers (everything below lives under the /api prefix) ---
+app.include_router(auth.router, prefix=settings.api_v1_prefix)
 app.include_router(chcs.router, prefix=settings.api_v1_prefix)
 app.include_router(machines.router, prefix=settings.api_v1_prefix)
 app.include_router(farmers.router, prefix=settings.api_v1_prefix)
@@ -74,6 +77,7 @@ app.include_router(map_data.router, prefix=settings.api_v1_prefix)
 app.include_router(allocation.router, prefix=settings.api_v1_prefix)
 app.include_router(relocations.router, prefix=settings.api_v1_prefix)
 app.include_router(routes.router, prefix=settings.api_v1_prefix)
+app.include_router(me.router, prefix=settings.api_v1_prefix)
 app.include_router(dashboard.router, prefix=settings.api_v1_prefix)
 app.include_router(demo.router, prefix=settings.api_v1_prefix)
 app.include_router(analytics.router, prefix=settings.api_v1_prefix)

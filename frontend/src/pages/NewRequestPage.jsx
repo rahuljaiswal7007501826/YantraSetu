@@ -6,7 +6,9 @@ import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import ErrorState from '../components/states/ErrorState'
 import FarmerPicker from '../components/FarmerPicker'
+import { useRole } from '../context/RoleContext'
 import { useFields } from '../hooks/useFarmers'
+import { useMyFields } from '../hooks/useMe'
 import { useCreateRequest } from '../hooks/useRequests'
 
 // Operations the network can perform (each maps to a machine type on the backend).
@@ -26,7 +28,13 @@ export default function NewRequestPage() {
   const [date, setDate] = useState(TODAY)
   const [urgency, setUrgency] = useState('medium')
 
-  const fieldsQ = useFields(farmerId)
+  // Farmer: fields come from the JWT-scoped self-service endpoint (they can only
+  // see their own). Staff: load the picked farmer's fields via the staff endpoint.
+  const { role } = useRole()
+  const isFarmer = role === 'farmer'
+  const staffFieldsQ = useFields(isFarmer ? null : farmerId)
+  const myFieldsQ = useMyFields(isFarmer)
+  const fieldsQ = isFarmer ? myFieldsQ : staffFieldsQ
   const fields = fieldsQ.data ?? []
   const create = useCreateRequest()
 

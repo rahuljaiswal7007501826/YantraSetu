@@ -11,12 +11,18 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.deps import get_current_user
 from app.database import get_db
 from app.models import CHC, Machine, MachineAvailability
 from app.schemas.map_data import MapMachine, MapShortage
 from app.services.demand_engine import analyze_demand, build_clusters, get_shortages
 
-router = APIRouter(prefix="/map", tags=["Map"])
+# Shared situational map: any authenticated user.
+router = APIRouter(
+    prefix="/map",
+    tags=["Map"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get("/machines", response_model=list[MapMachine])

@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     # --- Security (used from the auth phase) ---
     secret_key: str = "change-me-in-production"
     access_token_expire_minutes: int = 60 * 24  # 24 hours
+    algorithm: str = "HS256"  # JWT signing algorithm (HMAC-SHA256)
 
     # --- CORS: which frontend origins may call this API ---
     # Comma-separated string from the CORS_ORIGINS env var (kept as a string to

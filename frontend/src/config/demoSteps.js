@@ -1,10 +1,11 @@
 /**
  * The deterministic SIH walkthrough (Phase 7.7).
  *
- * Each step drives three things when the overlay advances to it:
- *   - `role`  : the console auto-switches to the role that owns this decision
+ * Each step drives navigation + narration when the overlay advances to it:
  *   - `path` + `query` : the app navigates to the screen that tells this part
  *   - `body`  : the narration the presenter delivers
+ *   - `role`  : which persona owns this decision (informational only - the demo
+ *               stays logged in as the current user; ADMIN can view every screen)
  *
  * The story is the product's core loop:
  *   Demand -> Allocation -> Relocation -> Approval -> Route -> Payoff.
@@ -58,8 +59,8 @@ export const DEMO_STEPS = [
     path: '/relocations',
     action: 'Select the pending combine-harvester move to Cluster B and click Approve. It flips to in transit.',
     body:
-      'The system never moves a machine on its own. As the CHC operator, you approve the recommended combine ' +
-      'relocation. If nothing is pending, use Reset scenario below, then approve it live.',
+      'The system never moves a machine on its own - a human approves it. Approve the recommended combine ' +
+      'relocation and it flips to in transit. If nothing is pending, use Reset scenario below, then approve it live.',
   },
   {
     key: 'map',

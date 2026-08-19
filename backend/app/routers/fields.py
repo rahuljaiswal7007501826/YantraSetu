@@ -3,12 +3,18 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.deps import require_roles
 from app.database import get_db
-from app.models import Farmer, Field
+from app.models import Farmer, Field, UserRole
 from app.schemas import FieldCreate, FieldRead, FieldUpdate
 from app.utils import get_or_404
 
-router = APIRouter(prefix="/fields", tags=["Fields"])
+# Field records: staff only (managers + admins).
+router = APIRouter(
+    prefix="/fields",
+    tags=["Fields"],
+    dependencies=[Depends(require_roles(UserRole.CHC_MANAGER, UserRole.ADMIN))],
+)
 
 
 def _ensure_farmer_exists(db: Session, farmer_id: int) -> None:

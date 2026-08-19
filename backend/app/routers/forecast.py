@@ -9,11 +9,18 @@ from typing import Literal
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.core.deps import require_roles
 from app.database import get_db
+from app.models import UserRole
 from app.schemas.forecast import DemandInsightRead
 from app.services.demand_engine import analyze_demand, get_shortages
 
-router = APIRouter(prefix="/forecast", tags=["Forecast"])
+# Planning data: managers and district admins only.
+router = APIRouter(
+    prefix="/forecast",
+    tags=["Forecast"],
+    dependencies=[Depends(require_roles(UserRole.CHC_MANAGER, UserRole.ADMIN))],
+)
 
 
 @router.get("", response_model=list[DemandInsightRead])

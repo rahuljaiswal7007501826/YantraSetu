@@ -19,12 +19,18 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.core.deps import require_roles
 from app.database import get_db
-from app.models import MachineAvailability, RelocationRecommendation
+from app.models import MachineAvailability, RelocationRecommendation, UserRole
 from app.schemas.relocation import GenerateResponse, RelocationRead
 from app.services.relocation_engine import generate_recommendations
 
-router = APIRouter(prefix="/relocations", tags=["Relocations"])
+# Relocation workflow (view + generate + approve/reject): managers + admins.
+router = APIRouter(
+    prefix="/relocations",
+    tags=["Relocations"],
+    dependencies=[Depends(require_roles(UserRole.CHC_MANAGER, UserRole.ADMIN))],
+)
 
 
 def _get_or_404(db: Session, rec_id: int) -> RelocationRecommendation:

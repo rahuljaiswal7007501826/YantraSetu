@@ -9,12 +9,18 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.core.deps import require_roles
 from app.database import get_db
-from app.models import DemandRequest, Field, Machine, Route, RouteStop
+from app.models import DemandRequest, Field, Machine, Route, RouteStop, UserRole
 from app.schemas.route import RouteOptimizeRequest, RouteRead
 from app.services.route_engine import RouteConfig, Stop, optimize_route
 
-router = APIRouter(prefix="/routes", tags=["Routes"])
+# Route optimization + read: operators (who execute) plus managers + admins.
+router = APIRouter(
+    prefix="/routes",
+    tags=["Routes"],
+    dependencies=[Depends(require_roles(UserRole.OPERATOR, UserRole.CHC_MANAGER, UserRole.ADMIN))],
+)
 
 MINUTES_PER_ACRE = 15   # rough operation time per acre
 MIN_SERVICE_MIN = 30    # never schedule a stop shorter than this

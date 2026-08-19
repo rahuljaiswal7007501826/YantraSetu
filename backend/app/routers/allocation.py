@@ -9,8 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.core.deps import require_roles
 from app.database import get_db
-from app.models import DemandRequest, Farmer
+from app.models import DemandRequest, Farmer, UserRole
 from app.schemas.allocation import (
     AllocationRequestIn,
     AllocationResponse,
@@ -18,7 +19,12 @@ from app.schemas.allocation import (
 )
 from app.services.allocation_engine import compatible_types, recommend_machines
 
-router = APIRouter(prefix="/allocation", tags=["Allocation"])
+# Allocation recommendations are a staff decision tool: managers + admins.
+router = APIRouter(
+    prefix="/allocation",
+    tags=["Allocation"],
+    dependencies=[Depends(require_roles(UserRole.CHC_MANAGER, UserRole.ADMIN))],
+)
 
 
 @router.post("/recommend", response_model=AllocationResponse)

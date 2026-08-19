@@ -7,12 +7,19 @@ Mounted at /api/analytics.
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.core.deps import require_role
 from app.database import get_db
+from app.models import UserRole
 from app.schemas.analytics import AnalyticsSummary, ImpactResponse, UtilizationResponse
 from app.services.impact_engine import compute_impact
 from app.services.utilization_engine import compute_analytics
 
-router = APIRouter(prefix="/analytics", tags=["Analytics"])
+# Network-wide analytics: district admin only.
+router = APIRouter(
+    prefix="/analytics",
+    tags=["Analytics"],
+    dependencies=[Depends(require_role(UserRole.ADMIN))],
+)
 
 
 @router.get("/summary", response_model=AnalyticsSummary)

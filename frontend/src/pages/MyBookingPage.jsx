@@ -9,7 +9,9 @@ import EmptyState from '../components/states/EmptyState'
 import ErrorState from '../components/states/ErrorState'
 import { SkeletonCard } from '../components/states/Loading'
 import FarmerPicker from '../components/FarmerPicker'
+import { useRole } from '../context/RoleContext'
 import { useAllocation } from '../hooks/useAllocation'
+import { useMyAssignment } from '../hooks/useMe'
 import { useRequests } from '../hooks/useRequests'
 
 const rupees = (n) => `Rs ${Math.round(n ?? 0).toLocaleString('en-IN')}`
@@ -29,8 +31,14 @@ export default function MyBookingPage() {
   const reqsQ = useRequests(listParams)
   const current = farmerId ? reqsQ.data?.[0] : null
 
-  const allocQ = useAllocation(current?.id)
-  const machine = allocQ.data?.recommendations?.[0]
+  // Farmer: read-only assignment via the self-service endpoint (the staff
+  // allocation endpoint is never exposed to farmers). Staff: the allocation view.
+  const { role } = useRole()
+  const isFarmer = role === 'farmer'
+  const allocQ = useAllocation(isFarmer ? null : current?.id)
+  const assignQ = useMyAssignment(isFarmer ? current?.id : null)
+  const activeQ = isFarmer ? assignQ : allocQ
+  const machine = isFarmer ? assignQ.data?.assigned_machine : allocQ.data?.recommendations?.[0]
 
   const busy = farmerId == null || reqsQ.isLoading
 
@@ -91,12 +99,12 @@ export default function MyBookingPage() {
           </Card>
 
           <Card title="Assigned machine" subtitle="Recommended by the allocation engine">
-            {allocQ.isLoading ? (
+            {activeQ.isLoading ? (
               <SkeletonCard />
-            ) : allocQ.isError ? (
+            ) : activeQ.isError ? (
               <ErrorState
-                message={allocQ.error?.message || 'Could not compute your assignment.'}
-                onRetry={allocQ.refetch}
+                message={activeQ.error?.message || 'Could not compute your assignment.'}
+                onRetry={activeQ.refetch}
               />
             ) : !machine ? (
               <p className="text-sm text-slate-600">
