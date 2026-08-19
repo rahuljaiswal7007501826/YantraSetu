@@ -4,6 +4,7 @@ Importing this package pulls in every model so they register on the shared
 Base.metadata. That is what makes Base.metadata.create_all() see all tables and
 lets string-based relationships (e.g. "Machine") resolve correctly.
 """
+from app.models.booking import Booking, BookingStatus
 from app.models.chc import CHC
 from app.models.demand_request import DemandRequest
 from app.models.farmer import Farmer
@@ -29,4 +30,6 @@ __all__ = [
     "UserRole",
     "Notification",
     "NotificationType",
+    "Booking",
+    "BookingStatus",
 ]

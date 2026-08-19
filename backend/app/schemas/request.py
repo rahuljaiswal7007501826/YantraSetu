@@ -29,3 +29,20 @@ class DemandRequestCreate(BaseModel):
     operation_type: str = Field(..., min_length=1, max_length=80)
     requested_date: date
     urgency: Literal["low", "medium", "high"] = "medium"
+
+
+class AssignRequestIn(BaseModel):
+    """Body for POST /api/requests/{id}/assign.
+
+    Provide `machine_id` for a direct assignment, OR set `use_recommendation=true`
+    to assign the top-ranked candidate from the allocation engine.
+    """
+
+    machine_id: int | None = Field(None, gt=0)
+    use_recommendation: bool = False
+
+
+class RejectRequestIn(BaseModel):
+    """Body for POST /api/requests/{id}/reject. A reason is required."""
+
+    reason: str = Field(..., min_length=1, max_length=500)

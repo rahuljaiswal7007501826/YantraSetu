@@ -12,24 +12,26 @@ import FarmerPicker from '../components/FarmerPicker'
 import { useRole } from '../context/RoleContext'
 import { useAllocation } from '../hooks/useAllocation'
 import { useMyAssignment } from '../hooks/useMe'
-import { useRequests } from '../hooks/useRequests'
+import { useCancelRequest, useRequests } from '../hooks/useRequests'
 
 const rupees = (n) => `Rs ${Math.round(n ?? 0).toLocaleString('en-IN')}`
 
 export default function MyBookingPage() {
   const [farmerId, setFarmerId] = useState(null)
 
-  // Seed to a farmer with a pending request so the booking card has something to show.
-  const seedQ = useRequests({ status: 'pending', limit: 1 })
+  // Seed to a farmer who has any request so the booking card has something to show.
+  const seedQ = useRequests({ limit: 1 })
   useEffect(() => {
     if (farmerId == null && seedQ.data?.length) setFarmerId(seedQ.data[0].farmer_id)
   }, [seedQ.data, farmerId])
 
-  const listParams = farmerId
-    ? { farmer_id: farmerId, status: 'pending', limit: 50 }
-    : { status: 'pending', limit: 1 }
+  const listParams = farmerId ? { farmer_id: farmerId, limit: 50 } : { limit: 1 }
   const reqsQ = useRequests(listParams)
-  const current = farmerId ? reqsQ.data?.[0] : null
+  // Most recent request (the list is ordered by id ascending).
+  const current = farmerId && reqsQ.data?.length ? reqsQ.data[reqsQ.data.length - 1] : null
+
+  const cancel = useCancelRequest()
+  const canCancel = current && ['pending', 'allocated', 'scheduled'].includes(current.status)
 
   // Farmer: read-only assignment via the self-service endpoint (the staff
   // allocation endpoint is never exposed to farmers). Staff: the allocation view.
@@ -48,10 +50,21 @@ export default function MyBookingPage() {
         <div>
           <h1 className="text-xl font-semibold text-slate-900">My Booking</h1>
           <p className="mt-0.5 text-sm text-slate-500">
-            The machine recommended for your current request.
+            Your latest request and its assigned machine.
           </p>
         </div>
-        <FarmerPicker value={farmerId} onChange={setFarmerId} />
+        <div className="flex items-center gap-3">
+          <FarmerPicker value={farmerId} onChange={setFarmerId} />
+          {canCancel && (
+            <Button
+              variant="danger"
+              onClick={() => cancel.mutate(current.id)}
+              disabled={cancel.isPending}
+            >
+              {cancel.isPending ? 'Cancelling...' : 'Cancel request'}
+            </Button>
+          )}
+        </div>
       </header>
 
       {reqsQ.isError ? (
@@ -98,7 +111,14 @@ export default function MyBookingPage() {
             </Link>
           </Card>
 
-          <Card title="Assigned machine" subtitle="Recommended by the allocation engine">
+          <Card
+            title="Assigned machine"
+            subtitle={
+              ['allocated', 'scheduled'].includes(current.status)
+                ? 'Confirmed by your CHC'
+                : 'Preview from the allocation engine'
+            }
+          >
             {activeQ.isLoading ? (
               <SkeletonCard />
             ) : activeQ.isError ? (

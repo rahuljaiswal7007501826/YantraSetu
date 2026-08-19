@@ -6,6 +6,7 @@ import AllocationPage from './pages/AllocationPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import DemandPage from './pages/DemandPage'
 import LoginPage from './pages/LoginPage'
+import ManagerPendingRequests from './pages/ManagerPendingRequests'
 import MapPage from './pages/MapPage'
 import MyBookingPage from './pages/MyBookingPage'
 import MyRequestsPage from './pages/MyRequestsPage'
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="/routes" element={<RoutesPage />} />
           <Route path="/map" element={<MapPage />} />
           <Route path="/network" element={<NetworkPage />} />
+          <Route path="/pending-requests" element={<ManagerPendingRequests />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/my-requests" element={<MyRequestsPage />} />
           <Route path="/request/:id" element={<RequestDetailsPage />} />

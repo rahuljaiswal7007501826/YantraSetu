@@ -19,10 +19,11 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import require_role
 from app.database import get_db
-from app.models import DemandRequest, Field, User, UserRole
+from app.models import CHC, Booking, DemandRequest, Field, Machine, User, UserRole
 from app.schemas.field import FieldRead
 from app.schemas.me import MyAssignedMachine, MyAssignmentRead
 from app.services.allocation_engine import recommend_machines
+from app.utils.geo import haversine_km
 
 router = APIRouter(prefix="/me", tags=["Farmer Self-Service"])
 
@@ -59,6 +60,46 @@ def my_assignment(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Request {request_id} not found",
+        )
+
+    # If a real Booking exists (Phase 16 assignment), that machine is
+    # authoritative - show it instead of a live recommendation preview.
+    booking = db.scalar(
+        select(Booking).where(
+            Booking.demand_request_id == request_id, Booking.status == "active"
+        )
+    )
+    if booking is not None:
+        machine = db.get(Machine, booking.machine_id)
+        if machine is None:
+            return MyAssignmentRead(
+                request_id=req.id, status=req.status, assigned_machine=None,
+                message="Your assigned machine is being confirmed.",
+            )
+        chc = db.get(CHC, machine.chc_id)
+        field = db.get(Field, req.field_id)
+        distance = (
+            round(
+                haversine_km(field.latitude, field.longitude,
+                             machine.current_latitude, machine.current_longitude),
+                1,
+            )
+            if field else 0.0
+        )
+        return MyAssignmentRead(
+            request_id=req.id, status=req.status,
+            assigned_machine=MyAssignedMachine(
+                machine_id=machine.id, machine_type=machine.machine_type,
+                chc_name=chc.name if chc else "", distance_km=distance, compatible=True,
+            ),
+            message=None,
+        )
+
+    # Terminal states have no live assignment to preview.
+    if req.status in ("rejected", "cancelled", "completed"):
+        return MyAssignmentRead(
+            request_id=req.id, status=req.status, assigned_machine=None,
+            message=f"This request was {req.status}.",
         )
 
     try:

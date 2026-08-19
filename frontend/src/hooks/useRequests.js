@@ -28,3 +28,40 @@ export function useCreateRequest() {
     },
   })
 }
+
+
+// --- Phase 16: manager assignment workflow mutations ---
+export function useAssignRequest() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, machineId = null, useRecommendation = false }) =>
+      requestService.assign(id, { machine_id: machineId, use_recommendation: useRecommendation }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['requests'] })
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+    },
+  })
+}
+
+export function useRejectRequest() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, reason }) => requestService.reject(id, reason),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['requests'] })
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+    },
+  })
+}
+
+export function useCancelRequest() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => requestService.cancel(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['requests'] })
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+      qc.invalidateQueries({ queryKey: ['me'] })
+    },
+  })
+}

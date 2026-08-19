@@ -6,9 +6,14 @@ const STATUS_STYLES = {
   maintenance: 'bg-slate-200 text-slate-700',
   pending: 'bg-amber-100 text-amber-800',
   approved: 'bg-emerald-100 text-emerald-800',
+  allocated: 'bg-emerald-100 text-emerald-800',
+  scheduled: 'bg-blue-100 text-blue-800',
   rejected: 'bg-red-100 text-red-800',
+  cancelled: 'bg-slate-200 text-slate-600',
   completed: 'bg-blue-100 text-blue-800',
   optimized: 'bg-blue-100 text-blue-800',
+  active: 'bg-emerald-100 text-emerald-800',
+  voided: 'bg-slate-200 text-slate-600',
 }
 
 export default function StatusBadge({ status }) {

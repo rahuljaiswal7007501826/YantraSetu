@@ -8,20 +8,31 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.deps import require_roles
 from app.database import get_db
-from app.models import DemandRequest, Farmer, Field, User, UserRole
-from app.schemas.request import DemandRequestCreate, DemandRequestRead
-from app.services.allocation_engine import COMPATIBILITY
+from app.models import DemandRequest, Farmer, Field, Machine, User, UserRole
+from app.schemas.booking import BookingRead
+from app.schemas.request import (
+    AssignRequestIn,
+    DemandRequestCreate,
+    DemandRequestRead,
+    RejectRequestIn,
+)
+from app.services import assignment_service
+from app.services.allocation_engine import COMPATIBILITY, compatible_types, recommend_machines
 
 # Requests are a farmer/staff workflow; operators are not part of it.
 _REQUEST_ROLES = (UserRole.FARMER, UserRole.CHC_MANAGER, UserRole.ADMIN)
+# Assignment / rejection are manager + admin actions (role-scoped; per-CHC
+# scoping is a deferred follow-up - see docs/assumptions.md).
+_STAFF_ROLES = (UserRole.CHC_MANAGER, UserRole.ADMIN)
 
 router = APIRouter(prefix="/requests", tags=["Requests"])
 
-RequestStatus = Literal["pending", "allocated", "scheduled", "completed", "cancelled"]
+RequestStatus = Literal["pending", "allocated", "scheduled", "completed", "cancelled", "rejected"]
 
 
 def _to_read(req: DemandRequest, field: Field, farmer: Farmer) -> DemandRequestRead:
@@ -154,4 +165,129 @@ def get_request(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"DemandRequest with id={request_id} not found",
         )
+    return _to_read(req, field, farmer)
+
+
+# --------------------------------------------------------------------------- #
+# Phase 16 - manager assignment workflow
+#
+# Role-scoped (any CHC_MANAGER/ADMIN may act on any pending request). Per-CHC
+# manager scoping is a deliberate deferred follow-up - see docs/assumptions.md.
+# The manager's "pending requests" list is the existing GET /api/requests?status=pending.
+# --------------------------------------------------------------------------- #
+@router.post("/{request_id}/assign", response_model=BookingRead)
+def assign_request(
+    request_id: int,
+    payload: AssignRequestIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(*_STAFF_ROLES)),
+):
+    """Assign a machine to a request - directly (`machine_id`) or by assigning the
+    top-ranked candidate from the allocation engine (`use_recommendation=true`).
+    Both paths create/update the Booking and set the request to `allocated`."""
+    req = db.get(DemandRequest, request_id)
+    if req is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"DemandRequest with id={request_id} not found")
+    if req.status not in ("pending", "allocated"):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Cannot assign a request with status '{req.status}'.",
+        )
+
+    if payload.use_recommendation:
+        # Reuse the allocation engine - do not duplicate its logic.
+        try:
+            candidates = recommend_machines(db, request_id, top_n=1)
+        except SQLAlchemyError:
+            raise HTTPException(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                "Database error while computing a recommendation. Please retry.",
+            )
+        if not candidates:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "No compatible, available machine was found. Consider rejecting the request.",
+            )
+        machine = db.get(Machine, candidates[0].machine_id)
+    else:
+        if payload.machine_id is None:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Provide machine_id, or set use_recommendation=true.",
+            )
+        machine = db.get(Machine, payload.machine_id)
+        if machine is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Machine {payload.machine_id} not found")
+        # Compatibility is a hard gate (reuses the allocation engine's matrix).
+        allowed = compatible_types(req.operation_type)
+        if allowed and machine.machine_type not in allowed:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"A {machine.machine_type} cannot perform operation '{req.operation_type}'.",
+            )
+
+    if machine is None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "The selected machine could not be loaded. Please retry."
+        )
+
+    return assignment_service.assign_machine(
+        db, request=req, machine=machine, assigned_by_user_id=current_user.id
+    )
+
+
+@router.post("/{request_id}/reject", response_model=DemandRequestRead)
+def reject_request(
+    request_id: int,
+    payload: RejectRequestIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(*_STAFF_ROLES)),
+):
+    """Reject a pending request with a required reason; notifies the farmer."""
+    row = db.execute(
+        select(DemandRequest, Field, Farmer)
+        .join(Field, Field.id == DemandRequest.field_id)
+        .join(Farmer, Farmer.id == DemandRequest.farmer_id)
+        .where(DemandRequest.id == request_id)
+    ).first()
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"DemandRequest with id={request_id} not found")
+    req, field, farmer = row
+    if req.status != "pending":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Only a pending request can be rejected (status is '{req.status}').",
+        )
+    assignment_service.reject_request(db, request=req, reason=payload.reason)
+    db.refresh(req)
+    return _to_read(req, field, farmer)
+
+
+@router.post("/{request_id}/cancel", response_model=DemandRequestRead)
+def cancel_request(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(*_REQUEST_ROLES)),
+):
+    """Cancel a request. A FARMER may cancel only their own; staff may cancel any.
+    Voids the booking (if any) and notifies the farmer."""
+    row = db.execute(
+        select(DemandRequest, Field, Farmer)
+        .join(Field, Field.id == DemandRequest.field_id)
+        .join(Farmer, Farmer.id == DemandRequest.farmer_id)
+        .where(DemandRequest.id == request_id)
+    ).first()
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"DemandRequest with id={request_id} not found")
+    req, field, farmer = row
+    # Owner scoping: a FARMER may only cancel their own request (404, no enumeration).
+    if current_user.role == UserRole.FARMER.value and req.farmer_id != current_user.farmer_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"DemandRequest with id={request_id} not found")
+    if req.status not in ("pending", "allocated", "scheduled"):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Cannot cancel a request with status '{req.status}'.",
+        )
+    assignment_service.cancel_request(db, request=req)
+    db.refresh(req)
     return _to_read(req, field, farmer)

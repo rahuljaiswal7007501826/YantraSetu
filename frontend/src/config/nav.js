@@ -3,6 +3,7 @@ import {
   BarChart3,
   CalendarClock,
   FileText,
+  Inbox,
   LayoutDashboard,
   Map,
   PlusCircle,
@@ -18,6 +19,7 @@ export const NAV_BY_ROLE = {
   district_admin: [
     { label: 'Overview', to: '/', icon: LayoutDashboard },
     { label: 'Demand Intelligence', to: '/demand', icon: Activity },
+    { label: 'Pending Requests', to: '/pending-requests', icon: Inbox },
     { label: 'Relocations', to: '/relocations', icon: Shuffle },
     { label: 'Live Map', to: '/map', icon: Map },
     { label: 'CHCs & Machines', to: '/network', icon: Tractor },
@@ -27,6 +29,7 @@ export const NAV_BY_ROLE = {
   // (RBAC), so the manager's workspace centres on the relocation approvals,
   // fleet, routes and the shared map.
   chc_operator: [
+    { label: 'Pending Requests', to: '/pending-requests', icon: Inbox },
     { label: 'Relocation Approvals', to: '/relocations', icon: Shuffle },
     { label: 'Machines', to: '/network', icon: Tractor },
     { label: 'Routes', to: '/routes', icon: RouteIcon },

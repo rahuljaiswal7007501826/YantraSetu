@@ -24,6 +24,7 @@ class NotificationType(str, enum.Enum):
     REQUEST_CREATED = "request_created"
     REQUEST_ASSIGNED = "request_assigned"
     REQUEST_REJECTED = "request_rejected"
+    REQUEST_CANCELLED = "request_cancelled"
     COMPLAINT_FILED = "complaint_filed"
     COMPLAINT_RESPONDED = "complaint_responded"
     COMPLAINT_RESOLVED = "complaint_resolved"
