@@ -6,6 +6,7 @@ import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import ErrorState from '../components/states/ErrorState'
 import FarmerPicker from '../components/FarmerPicker'
+import VoiceInputButton from '../components/VoiceInputButton'
 import { useRole } from '../context/RoleContext'
 import { useFields } from '../hooks/useFarmers'
 import { useMyFields } from '../hooks/useMe'
@@ -19,6 +20,36 @@ const URGENCIES = [
   { value: 'high', label: 'High (urgent)' },
 ]
 const TODAY = new Date().toISOString().slice(0, 10)
+
+// Rule-based keyword -> field mapping for a spoken request. Deliberately simple
+// (substring match on Hindi + common English/Hinglish terms), NOT an LLM parse:
+// free-form natural-language understanding (extracting crop/field/date, handling
+// paraphrases) is a nice-to-have deliberately deferred - see docs/assumptions.md.
+const OPERATION_KEYWORDS = {
+  Harvesting: ['कटाई', 'कटनी', 'हार्वेस्ट', 'harvest', 'फसल काट'],
+  Ploughing: ['जुताई', 'हल', 'plough', 'plow'],
+  Tillage: ['टिलेज', 'भूमि तैयार', 'खेत तैयार', 'tillage', 'till'],
+  Sowing: ['बुवाई', 'बुआई', 'बीज', 'sow', 'seeding'],
+  Spraying: ['छिड़काव', 'स्प्रे', 'दवा', 'कीटनाशक', 'spray'],
+  Baling: ['गठान', 'बेलिंग', 'भूसा', 'bale', 'baling'],
+}
+// Order matters: check "low" phrases before "high" so "jaldi nahi" (not urgent)
+// isn't caught by the "jaldi" (urgent) keyword.
+const URGENCY_KEYWORDS = {
+  low: ['जल्दी नहीं', 'कभी भी', 'no hurry', 'not urgent'],
+  high: ['जल्दी', 'तुरंत', 'तत्काल', 'अर्जेंट', 'urgent', 'emergency', 'immediately'],
+}
+
+function mapTranscriptToFields(text) {
+  const t = (text || '').toLowerCase()
+  const match = (dict) => {
+    for (const [value, kws] of Object.entries(dict)) {
+      if (kws.some((k) => t.includes(k.toLowerCase()))) return value
+    }
+    return null
+  }
+  return { operation: match(OPERATION_KEYWORDS), urgency: match(URGENCY_KEYWORDS) }
+}
 
 export default function NewRequestPage() {
   const navigate = useNavigate()
@@ -46,6 +77,13 @@ export default function NewRequestPage() {
 
   const canSubmit = Boolean(farmerId && fieldId && operation && date) && !create.isPending
 
+  // Voice pre-fills operation + urgency only (rule-based); never auto-submits.
+  const handleVoiceTranscript = (text) => {
+    const { operation: op, urgency: urg } = mapTranscriptToFields(text)
+    if (op) setOperation(op)
+    if (urg) setUrgency(urg)
+  }
+
   const onSubmit = (e) => {
     e.preventDefault()
     if (!canSubmit) return
@@ -72,6 +110,12 @@ export default function NewRequestPage() {
 
       <div className="max-w-2xl">
         <Card title="Request details">
+          <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <VoiceInputButton onTranscript={handleVoiceTranscript} />
+            <p className="mt-1.5 text-[11px] text-slate-400">
+              We pre-fill the operation and urgency from your words - always review the form before submitting.
+            </p>
+          </div>
           <form onSubmit={onSubmit} className="space-y-4">
             <Row label="Farmer">
               <FarmerPicker value={farmerId} onChange={setFarmerId} label="" />

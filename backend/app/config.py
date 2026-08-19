@@ -58,10 +58,26 @@ class Settings(BaseSettings):
     # `cors_origins_list`. Default covers Vite's dev server.
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
+    # --- Voice input (Phase 17): Bhashini ASR. All optional - empty credentials
+    # mean the voice feature simply falls back (Web Speech API, then manual text). ---
+    bhashini_user_id: str = ""
+    bhashini_api_key: str = ""  # ULCA "ulcaApiKey"
+    bhashini_pipeline_id: str = "64392f96daac500b55c543cd"  # MeitY public ASR pipeline
+    bhashini_config_url: str = (
+        "https://meity-auth.ulcacontrib.org/ulca/apis/v0/model/getModelsPipeline"
+    )
+    # Reject audio uploads larger than this (a few-second clip is far smaller).
+    voice_max_upload_bytes: int = 8_000_000
+
     @property
     def cors_origins_list(self) -> list[str]:
         """CORS origins as a clean list (comma-split, trimmed, no blanks)."""
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def bhashini_configured(self) -> bool:
+        """True only when both Bhashini credentials are present."""
+        return bool(self.bhashini_user_id.strip() and self.bhashini_api_key.strip())
 
     @property
     def is_production(self) -> bool:

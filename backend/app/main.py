@@ -29,6 +29,7 @@ from app.routers import (
     relocations,
     requests,
     routes,
+    voice,
 )
 
 settings = get_settings()
@@ -80,6 +81,7 @@ app.include_router(relocations.router, prefix=settings.api_v1_prefix)
 app.include_router(routes.router, prefix=settings.api_v1_prefix)
 app.include_router(me.router, prefix=settings.api_v1_prefix)
 app.include_router(notifications.router, prefix=settings.api_v1_prefix)
+app.include_router(voice.router, prefix=settings.api_v1_prefix)
 app.include_router(dashboard.router, prefix=settings.api_v1_prefix)
 app.include_router(demo.router, prefix=settings.api_v1_prefix)
 app.include_router(analytics.router, prefix=settings.api_v1_prefix)
